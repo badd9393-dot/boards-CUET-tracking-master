@@ -3,41 +3,58 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study Tracker</title>
-
+<title>Epic Study Tracker</title>
 <style>
 body{background:#020617;color:#e5e7eb;font-family:system-ui;padding:14px}
 h1{text-align:center}
 .card{background:#0f172a;padding:14px;border-radius:14px;margin-top:12px}
 .today{background:#1e40af}
 .exam{background:#7c2d12}
-.slot{display:flex;gap:10px;margin:8px 0}
+.slot{display:flex;gap:10px;margin:8px 0;align-items:center}
 input[type=checkbox]{width:22px;height:22px}
 input[type=number]{width:60px;padding:6px}
-button{width:100%;padding:10px;margin-top:10px;
-background:#2563eb;color:white;border:none;border-radius:10px}
-.progress{display:flex;justify-content:space-between;gap:10px}
-.box{background:#020617;padding:10px;border-radius:10px;text-align:center}
+button{width:100%;padding:10px;margin-top:10px;background:#2563eb;color:white;border:none;border-radius:10px}
+.progress{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.box{background:#020617;padding:10px;border-radius:10px;text-align:center;flex:1}
 .small{font-size:13px;color:#cbd5f5}
-.bar{height:10px;background:#334155;border-radius:10px;overflow:hidden}
+.bar{height:10px;background:#334155;border-radius:10px;overflow:hidden;margin-bottom:5px}
 .fill{height:100%;background:#22c55e}
+
+/* Streak animation */
+@keyframes shake {
+  0% { transform: scale(1) rotate(0deg); }
+  25% { transform: scale(1.1) rotate(-5deg); }
+  50% { transform: scale(1.1) rotate(5deg); }
+  75% { transform: scale(1.1) rotate(-5deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+.streak-glow {
+  animation: shake 0.8s ease-in-out;
+  color: #facc15;
+  font-size: 1.2em;
+}
 </style>
 </head>
 
 <body>
 
 <h1>📘 Today Tracker</h1>
+
+<!-- Streak Badge -->
 <div id="streakBadge" class="card" style="text-align:center;font-weight:bold">
   🔥 Streak: 0 days
 </div>
 
+<!-- Exam Countdown -->
 <div id="countdown" class="card"></div>
 
+<!-- Daily Target -->
 <div class="card">
   🎯 Daily Target:
   <input type="number" id="target" min="1" max="5">
 </div>
 
+<!-- Progress -->
 <div class="card progress">
   <div class="box">
     <div id="boardsPct">0%</div>
@@ -49,14 +66,20 @@ background:#2563eb;color:white;border:none;border-radius:10px}
   </div>
 </div>
 
+<!-- Today slots -->
 <div id="today"></div>
 
+<!-- Weekly view -->
 <div class="card">
   <h3>📊 Last 7 Days</h3>
   <div id="weekly"></div>
 </div>
 
+<!-- Confetti canvas -->
+<canvas id="confettiCanvas" style="position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;"></canvas>
+
 <script>
+// ===== CONFIG =====
 const exams={
  "Physical Edu":"Tue Feb 18 2026",
  "Accountancy":"Mon Feb 24 2026",
@@ -85,6 +108,7 @@ document.getElementById("target").onchange=e=>{
  localStorage.setItem("targets",JSON.stringify(targets));
 };
 
+// ===== Exam countdown =====
 function examCountdown(){
  let min=Infinity,msg="";
  for(let s in exams){
@@ -96,6 +120,7 @@ function examCountdown(){
 }
 examCountdown();
 
+// ===== Render today slots =====
 function renderToday(){
  const box=document.createElement("div");
  box.className="card today";
@@ -114,30 +139,41 @@ function renderToday(){
 }
 renderToday();
 
+// ===== Toggle checkbox =====
 function toggle(i){
  data[today][i]=!data[today][i];
  update();
 }
 
+// ===== Save function =====
 function save(){
  localStorage.setItem("tracker",JSON.stringify(data));
  location.reload();
 }
 
+// ===== Update progress + confetti =====
 function update(){
- let b=0,c=0,bt=0,ct=0,done=0;
+ let b=0,c=0,bt=0,ct=0;
  slots.forEach((s,i)=>{
   if(s.type==="boards"){bt++; if(data[today][i]) b++}
   else{ct++; if(data[today][i]) c++}
-  if(data[today][i]) done++;
  });
+
  document.getElementById("boardsPct").innerText=Math.round(b/bt*100||0)+"%";
  document.getElementById("cuetPct").innerText=Math.round(c/ct*100||0)+"%";
+
+ // Confetti if target met
+ const target = +targets[today] || 0;
+ if(target>0 && data[today].filter(Boolean).length >= target){
+   launchConfetti();
+ }
 }
 update();
 
+// ===== Weekly 7-day view =====
 function weekly(){
  const w=document.getElementById("weekly");
+ w.innerHTML="";
  for(let i=6;i>=0;i--){
   const d=new Date();d.setDate(d.getDate()-i);
   const k=d.toDateString();
@@ -149,23 +185,11 @@ function weekly(){
  }
 }
 weekly();
-  function weekly(){
-  const w=document.getElementById("weekly");
-  for(let i=6;i>=0;i--){
-    const d=new Date();d.setDate(d.getDate()-i);
-    const k=d.toDateString();
-    const cnt=(data[k]||[]).filter(Boolean).length;
-    const pct=Math.round(cnt/slots.length*100);
-    w.innerHTML+=`
-     <div class="small">${k}</div>
-     <div class="bar"><div class="fill" style="width:${pct}%"></div></div>`;
-  }
-}
-weekly();
+
+// ===== Calculate streak =====
 function calculateStreak(){
   let streak = 0;
   let d = new Date();
-
   while (true) {
     const key = d.toDateString();
     const isExam = Object.values(exams).includes(key);
@@ -180,14 +204,54 @@ function calculateStreak(){
     d.setDate(d.getDate() - 1);
   }
 
-  document.getElementById("streakBadge").innerText =
-    "🔥 Streak: " + streak + " days";
+  const badge = document.getElementById("streakBadge");
+  badge.innerText = "🔥 Streak: " + streak + " days";
+
+  // Animate streak if increased
+  let lastStreak = +localStorage.getItem("lastStreak") || 0;
+  if(streak > lastStreak){
+    badge.classList.add("streak-glow");
+    setTimeout(()=> badge.classList.remove("streak-glow"),800);
+  }
+  localStorage.setItem("lastStreak", streak);
 }
 calculateStreak();
-/* 👆 END HERE */
-</script>
 
-</script>
+// ===== Confetti =====
+function launchConfetti() {
+  const canvas = document.getElementById("confettiCanvas");
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 
+  const confetti = [];
+  for(let i=0;i<100;i++){
+    confetti.push({
+      x: Math.random()*canvas.width,
+      y: Math.random()*canvas.height,
+      r: Math.random()*6+2,
+      dx: (Math.random()-0.5)*4,
+      dy: Math.random()*4+2,
+      color: `hsl(${Math.random()*360},100%,50%)`
+    });
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    confetti.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=p.color;
+      ctx.fill();
+      p.x+=p.dx;
+      p.y+=p.dy;
+      if(p.y>canvas.height){p.y=0;p.x=Math.random()*canvas.width;}
+    });
+    requestAnimationFrame(draw);
+  }
+  draw();
+  setTimeout(()=> ctx.clearRect(0,0,canvas.width,canvas.height),1500);
+}
+</script>
 </body>
 </html>
