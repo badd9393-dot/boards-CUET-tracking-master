@@ -27,6 +27,9 @@ background:#2563eb;color:white;border:none;border-radius:10px}
 <body>
 
 <h1>📘 Today Tracker</h1>
+<div id="streakBadge" class="card" style="text-align:center;font-weight:bold">
+  🔥 Streak: 0 days
+</div>
 
 <div id="countdown" class="card"></div>
 
@@ -146,6 +149,44 @@ function weekly(){
  }
 }
 weekly();
+  function weekly(){
+  const w=document.getElementById("weekly");
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const k=d.toDateString();
+    const cnt=(data[k]||[]).filter(Boolean).length;
+    const pct=Math.round(cnt/slots.length*100);
+    w.innerHTML+=`
+     <div class="small">${k}</div>
+     <div class="bar"><div class="fill" style="width:${pct}%"></div></div>`;
+  }
+}
+weekly();
+function calculateStreak(){
+  let streak = 0;
+  let d = new Date();
+
+  while (true) {
+    const key = d.toDateString();
+    const isExam = Object.values(exams).includes(key);
+
+    if (isExam) {
+      streak++;
+    } else if (data[key] && data[key].some(v => v)) {
+      streak++;
+    } else {
+      break;
+    }
+    d.setDate(d.getDate() - 1);
+  }
+
+  document.getElementById("streakBadge").innerText =
+    "🔥 Streak: " + streak + " days";
+}
+calculateStreak();
+/* 👆 END HERE */
+</script>
+
 </script>
 
 </body>
