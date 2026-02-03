@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study Tracker</title>
+
+<style>
+body{background:#020617;color:#e5e7eb;font-family:system-ui;padding:14px}
+h1{text-align:center}
+.card{background:#0f172a;padding:14px;border-radius:14px;margin-top:12px}
+.today{background:#1e40af}
+.exam{background:#7c2d12}
+.slot{display:flex;gap:10px;margin:8px 0}
+input[type=checkbox]{width:22px;height:22px}
+input[type=number]{width:60px;padding:6px}
+button{width:100%;padding:10px;margin-top:10px;
+background:#2563eb;color:white;border:none;border-radius:10px}
+.progress{display:flex;justify-content:space-between;gap:10px}
+.box{background:#020617;padding:10px;border-radius:10px;text-align:center}
+.small{font-size:13px;color:#cbd5f5}
+.bar{height:10px;background:#334155;border-radius:10px;overflow:hidden}
+.fill{height:100%;background:#22c55e}
+</style>
+</head>
+
+<body>
+
+<h1>📘 Today Tracker</h1>
+
+<div id="countdown" class="card"></div>
+
+<div class="card">
+  🎯 Daily Target:
+  <input type="number" id="target" min="1" max="5">
+</div>
+
+<div class="card progress">
+  <div class="box">
+    <div id="boardsPct">0%</div>
+    <div class="small">Boards</div>
+  </div>
+  <div class="box">
+    <div id="cuetPct">0%</div>
+    <div class="small">CUET</div>
+  </div>
+</div>
+
+<div id="today"></div>
+
+<div class="card">
+  <h3>📊 Last 7 Days</h3>
+  <div id="weekly"></div>
+</div>
+
+<script>
+const exams={
+ "Physical Edu":"Tue Feb 18 2026",
+ "Accountancy":"Mon Feb 24 2026",
+ "Maths":"Mon Mar 09 2026",
+ "English":"Thu Mar 12 2026",
+ "Economics":"Wed Mar 18 2026",
+ "BST":"Sat Mar 28 2026"
+};
+
+const slots=[
+ {name:"9:30–11:00 Boards",type:"boards"},
+ {name:"11:30–1:00 Boards",type:"boards"},
+ {name:"5:00–6:00 CUET",type:"cuet"},
+ {name:"9:00–9:45 English",type:"cuet"},
+ {name:"11:30–11:50 Revision",type:"boards"}
+];
+
+const today=new Date().toDateString();
+let data=JSON.parse(localStorage.getItem("tracker"))||{};
+let targets=JSON.parse(localStorage.getItem("targets"))||{};
+if(!data[today]) data[today]=slots.map(()=>false);
+
+document.getElementById("target").value=targets[today]||"";
+document.getElementById("target").onchange=e=>{
+ targets[today]=+e.target.value;
+ localStorage.setItem("targets",JSON.stringify(targets));
+};
+
+function examCountdown(){
+ let min=Infinity,msg="";
+ for(let s in exams){
+  const d=new Date(exams[s]);
+  const diff=Math.ceil((d-new Date())/86400000);
+  if(diff>=0 && diff<min){min=diff;msg=`📅 ${s} exam in ${diff} day(s)`;}
+ }
+ document.getElementById("countdown").innerText=msg||"No upcoming exams";
+}
+examCountdown();
+
+function renderToday(){
+ const box=document.createElement("div");
+ box.className="card today";
+ let html=`<h3>${today}</h3>`;
+ slots.forEach((s,i)=>{
+  html+=`
+  <div class="slot">
+   <input type="checkbox" ${data[today][i]?"checked":""}
+    onchange="toggle(${i})">
+   <span>${s.name}</span>
+  </div>`;
+ });
+ html+=`<button onclick="save()">Save</button>`;
+ box.innerHTML=html;
+ document.getElementById("today").appendChild(box);
+}
+renderToday();
+
+function toggle(i){
+ data[today][i]=!data[today][i];
+ update();
+}
+
+function save(){
+ localStorage.setItem("tracker",JSON.stringify(data));
+ location.reload();
+}
+
+function update(){
+ let b=0,c=0,bt=0,ct=0,done=0;
+ slots.forEach((s,i)=>{
+  if(s.type==="boards"){bt++; if(data[today][i]) b++}
+  else{ct++; if(data[today][i]) c++}
+  if(data[today][i]) done++;
+ });
+ document.getElementById("boardsPct").innerText=Math.round(b/bt*100||0)+"%";
+ document.getElementById("cuetPct").innerText=Math.round(c/ct*100||0)+"%";
+}
+update();
+
+function weekly(){
+ const w=document.getElementById("weekly");
+ for(let i=6;i>=0;i--){
+  const d=new Date();d.setDate(d.getDate()-i);
+  const k=d.toDateString();
+  const cnt=(data[k]||[]).filter(Boolean).length;
+  const pct=Math.round(cnt/slots.length*100);
+  w.innerHTML+=`
+   <div class="small">${k}</div>
+   <div class="bar"><div class="fill" style="width:${pct}%"></div></div>`;
+ }
+}
+weekly();
+</script>
+
+</body>
+</html>
